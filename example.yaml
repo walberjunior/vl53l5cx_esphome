@@ -1,0 +1,158 @@
+# Example configuration for the VL53L5CX external component (ESPHome 2026.9.x).
+esphome:
+  name: tof-matrix
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO          # matrix logging uses INFO; keep it at INFO or lower to see it
+api:
+ota:
+  - platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 1MHz      # 400kHz also works, but 8x8 with 4 targets then needs a low ranging frequency
+  scan: true
+
+vl53l5cx:
+  id: tof
+  # address: 0x29      # default (the 0x52 of the ST documentation is the 8-bit form)
+  lpn_pin: GPIO4       # optional, recommended: lets the component power-cycle the sensor
+  interrupt_pin:       # optional A3/INT line; without it the sensor is polled
+    number: GPIO5
+    mode: INPUT_PULLUP
+  targets_per_zone: 4  # COMPILE-TIME (1-4). Changing it needs a rebuild + flash.
+  i2c_chunk_size: 64   # bytes per I2C transaction; raise on ESP32 for faster transfers
+  # Empty-environment references (MANDATORY file, in components/vl53l5cx/). It may be empty or
+  # fully commented (then ignored). Edit it with any non-ESPHome editor and recompile.
+  environment_file: environment.conf
+  # Motion indicator: DISABLED by default (plugin, result block and entities are compiled out).
+  # To enable it, remove the "#M# " markers in this file (hub options, text sensor, switches).
+  #M# motion_indicator: true
+  #M# motion_distance_min: 400   # mm
+  #M# motion_distance_max: 1500  # mm (max - min <= 1500)
+
+sensor:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    driver_error_raw:
+      name: "Driver Errors RAW"
+    temperature_raw:
+      name: "Sensor Temperature RAW"
+
+text_sensor:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    # One value per zone ------------------------------------------------------
+    ambient_per_spad_raw:
+      name: "Ambient Per SPAD RAW"                  # Kcps/SPAD
+    number_of_targets_detected:
+      name: "Number of Targets Detected"        # targets, PROCESSED (status filter + limit + environment)
+    number_of_targets_detected_raw:
+      name: "Number of Targets Detected RAW"    # targets, exactly as the sensor reports them
+    number_of_spads_enabled_raw:
+      name: "Number of SPADs Enabled RAW"           # SPADs
+    #M# motion_indicator_raw:
+    #M#   name: "Motion Indicator RAW"                # always a 4x4 grid of 16 aggregates
+    # One entity per target index (T1 = first target in the selected Target Order)
+    signal_per_spad_raw:                            # Kcps/SPAD
+      - name: "Signal Per SPAD RAW T1"
+      - name: "Signal Per SPAD RAW T2"
+    range_sigma_raw:                                # mm
+      - name: "Range Sigma RAW T1"
+      - name: "Range Sigma RAW T2"
+    target_status_raw:                              # raw ULD status codes
+      - name: "Target Status RAW T1"
+      - name: "Target Status RAW T2"
+    reflectance_raw:                                # %
+      - name: "Reflectance RAW T1"
+      - name: "Reflectance RAW T2"
+    distance_raw:                               # cm, NOT filtered
+      - name: "Distance RAW T1"
+      - name: "Distance RAW T2"
+    distance:                                   # cm, processed: status filter, Maximum Distance, environment
+      - name: "Distance T1"
+      - name: "Distance T2"
+
+select:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    resolution:
+      name: "Resolution"
+    ranging_mode:
+      name: "Ranging Mode"
+    target_order:
+      name: "Target Order"
+    target_status_filter:
+      name: "Target Status Filter"
+    matrix_rotation:
+      name: "Matrix Rotation"
+
+number:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    ranging_frequency:
+      name: "Ranging Frequency"
+    integration_time:
+      name: "Integration Time"
+    sharpener:
+      name: "Sharpener"
+    matrix_update_interval:
+      name: "Matrix Update Interval"
+    periodic_temperature_compensation:
+      name: "Periodic Temperature Compensation"
+    minimum_distance:                    # cm; closer readings (e.g. a 0 cm glitch) are not targets
+      name: "Minimum Distance"
+    maximum_distance:                    # cm; NaN and larger distances become this value in Distance
+      name: "Maximum Distance"
+    calibration_duration:                # s; length of the empty-environment calibration
+      name: "Calibration Duration"
+
+switch:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    ambient_per_spad_raw_logging:
+      name: "Ambient Per SPAD RAW Matrix Logging"
+    number_of_targets_detected_logging:
+      name: "Number of Targets Detected Matrix Logging"
+    number_of_spads_enabled_raw_logging:
+      name: "Number of SPADs Enabled RAW Matrix Logging"
+    signal_per_spad_raw_logging:
+      name: "Signal Per SPAD RAW Matrix Logging"
+    range_sigma_raw_logging:
+      name: "Range Sigma RAW Matrix Logging"
+    target_status_raw_logging:
+      name: "Target Status RAW Matrix Logging"
+    reflectance_raw_logging:
+      name: "Reflectance RAW Matrix Logging"
+    #M# motion_indicator_raw_logging:
+    #M#   name: "Motion Indicator RAW Matrix Logging"
+    distance_raw_logging:
+      name: "Distance RAW Matrix Logging"
+    distance_logging:
+      name: "Distance Matrix Logging"
+    number_of_targets_detected_raw_logging:
+      name: "Number of Targets Detected RAW Matrix Logging"
+    environment_filter:                  # runtime on/off of the environment filter (restored at boot)
+      name: "Environment Filter"
+    #M# motion_indicator_raw_debug_logging:   # debug aid: full ULD motion structure, every frame
+    #M#   name: "Motion Indicator RAW Debug Logging"
+
+button:
+  - platform: vl53l5cx
+    vl53l5cx_id: tof
+    calibrate_environment:               # keep the passage completely free; 8x8 only; best at 1 Hz
+      name: "Calibrate Empty Environment"
