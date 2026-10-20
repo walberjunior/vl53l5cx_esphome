@@ -1,5 +1,5 @@
 # VL53L5CX ESPHome External Component
-
+This component was developed with AI (claude) assistance and tested on real hardware, although not every feature or configuration has been hardware-validated.
 > [!WARNING]
 > **Be careful when configuring `Matrix Update Interval`.** The VL53L5CX can generate a large amount of matrix data, especially at 8×8 resolution and when several matrices or targets are enabled. Setting this interval too low can flood ESPHome/Home Assistant with state updates, increase memory and processing load, and may cause Home Assistant to restart. **Start with `1000 ms` (the default) and lower it gradually only after verifying stability.** Setting it to `0` publishes every newly acquired frame and can create a very high update rate.
 >
